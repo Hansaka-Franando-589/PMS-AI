@@ -27,7 +27,7 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 const prefix = '.';
-const ownerNumber = ['94779912589'];
+const ownerNumber = [config.BOT_OWNER || '94742053080'];
 const credsPath = path.join(__dirname, '/auth_info_baileys/creds.json');
 
 async function ensureSessionFile() {
@@ -102,17 +102,35 @@ async function connectToWA() {
       console.log('✅ Dexer MD connected to WhatsApp');
       await danuwa.sendPresenceUpdate('available'); // Always show Online
 
-      const up = `Dexer MD connected ✅\n\nPREFIX: ${prefix}`;
-      await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
-        image: { url: `https://i.ibb.co/WpNDqSrd/freepik-highcontrast-dark-hackerthemed-logo-design-for-a-h-3878.png` },
-        caption: up
-      });
+      // Load plugins first so bot is functional even if the welcome message fails
+      try {
+        fs.readdirSync("./plugins/").forEach((plugin) => {
+          if (path.extname(plugin).toLowerCase() === ".js") {
+            require(`./plugins/${plugin}`);
+          }
+        });
+        console.log('✅ Plugins loaded successfully');
+      } catch (err) {
+        console.error('❌ Failed to load plugins:', err);
+      }
 
-      fs.readdirSync("./plugins/").forEach((plugin) => {
-        if (path.extname(plugin).toLowerCase() === ".js") {
-          require(`./plugins/${plugin}`);
+      const up = `Dexer MD connected ✅\n\nPREFIX: ${prefix}`;
+      try {
+        await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
+          image: { url: config.ALIVE_IMG || `https://i.ibb.co/WpNDqSrd/freepik-highcontrast-dark-hackerthemed-logo-design-for-a-h-3878.png` },
+          caption: up
+        });
+      } catch (err) {
+        console.error('❌ Failed to send startup image message:', err);
+        // Fallback to sending just text if image fetch fails
+        try {
+          await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
+            text: up
+          });
+        } catch (e) {
+          console.error('❌ Failed to send fallback startup message:', e);
         }
-      });
+      }
     }
   });
 
