@@ -32,33 +32,30 @@ const credsPath = path.join(__dirname, '/auth_info_baileys/creds.json');
 
 async function ensureSessionFile() {
   if (!fs.existsSync(credsPath)) {
-    if (!config.SESSION_ID) {
-      console.error('❌ SESSION_ID env variable is missing. Cannot restore session.');
-      process.exit(1);
-    }
-
-    console.log("🔄 creds.json not found. Downloading session from MEGA...");
-
-    const sessdata = config.SESSION_ID;
-    const filer = File.fromURL(`https://mega.nz/file/${sessdata}`);
-
-    filer.download((err, data) => {
-      if (err) {
-        console.error("❌ Failed to download session file from MEGA:", err);
-        process.exit(1);
+    console.log("🔄 No local session found.");
+    if (config.SESSION_ID) {
+      console.log("🔄 Attempting to download session from MEGA...");
+      const sessdata = config.SESSION_ID;
+      try {
+        const filer = File.fromURL(`https://mega.nz/file/${sessdata}`);
+        filer.download((err, data) => {
+          if (err) throw err;
+          fs.mkdirSync(path.join(__dirname, '/auth_info_baileys/'), { recursive: true });
+          fs.writeFileSync(credsPath, data);
+          console.log("✅ Session downloaded and saved. Starting bot...");
+          setTimeout(() => connectToWA(), 2000);
+        });
+      } catch (e) {
+        console.error("❌ Failed to download session. Starting with Pairing Code...");
+        setTimeout(() => connectToWA(), 1000);
       }
-
-      fs.mkdirSync(path.join(__dirname, '/auth_info_baileys/'), { recursive: true });
-      fs.writeFileSync(credsPath, data);
-      console.log("✅ Session downloaded and saved. Restarting bot...");
-      setTimeout(() => {
-        connectToWA();
-      }, 2000);
-    });
+    } else {
+      console.log("🔄 No SESSION_ID found. Starting process to generate Pairing Code...");
+      setTimeout(() => connectToWA(), 1000);
+    }
   } else {
-    setTimeout(() => {
-      connectToWA();
-    }, 1000);
+    console.log("✅ Local session found. Starting bot...");
+    setTimeout(() => connectToWA(), 1000);
   }
 }
 
@@ -77,6 +74,23 @@ async function connectToWA() {
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
   });
+
+  // Pairing Code Logic
+  if (!danuwa.authState.creds.registered) {
+    const phoneNumber = config.BOT_OWNER.replace(/[^0-9]/g, ''); // Ensure only digits
+    setTimeout(async () => {
+      try {
+        let code = await danuwa.requestPairingCode(phoneNumber);
+        code = code?.match(/.{1,4}/g)?.join("-") || code;
+        console.log(`\n=========================================\n`);
+        console.log(`🔑 ඔබේ පේයාරිං කේතය (PAIRING CODE): \x1b[32m${code}\x1b[0m`);
+        console.log(`ඔබගේ WhatsApp හි 'Linked Devices' වෙත ගොස් 'Link with Phone Number' හරහා ඉහත කේතය ලබා දෙන්න.`);
+        console.log(`\n=========================================\n`);
+      } catch (err) {
+        console.log("❌ Pairing Code එක ලබා ගැනීමේදී දෝෂයක් ඇතිවිය: ", err);
+      }
+    }, 3000);
+  }
 
   danuwa.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
