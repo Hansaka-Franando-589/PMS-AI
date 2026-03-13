@@ -104,7 +104,7 @@ async function connectToWA() {
 
       const up = `Dexer MD connected ✅\n\nPREFIX: ${prefix}`;
       await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
-        image: { url: `https://github.com/DANUWA-MD/DANUWA-MD/blob/main/images/DANUWA-MD.png?raw=true` },
+        image: { url: `https://i.ibb.co/WpNDqSrd/freepik-highcontrast-dark-hackerthemed-logo-design-for-a-h-3878.png` },
         caption: up
       });
 
