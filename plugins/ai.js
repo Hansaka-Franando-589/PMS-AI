@@ -167,7 +167,7 @@ cmd({
             if (!body) return; // Ignore if no text body and in normal state
 
             await danuwa.sendPresenceUpdate('composing', from);
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             let systemPrompt = "";
 
             if (state.step === 'NORMAL') {
