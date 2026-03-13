@@ -1,10 +1,10 @@
 const { cmd } = require('../command');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 const config = require('../config');
 const { db } = require('../lib/firebase');
 
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+// Gemini REST API endpoint (v1 - supports all latest models)
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent`;
 
 // In-memory state management for users
 const userStates = {};
@@ -167,7 +167,6 @@ cmd({
             if (!body) return; // Ignore if no text body and in normal state
 
             await danuwa.sendPresenceUpdate('composing', from);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             let systemPrompt = "";
 
             if (state.step === 'NORMAL') {
@@ -209,9 +208,11 @@ cmd({
 `;
             }
 
-            const chat = model.startChat({ history: [] });
-            const result = await chat.sendMessage(systemPrompt);
-            const textResult = result.response.text();
+            const geminiRes = await axios.post(
+                `${GEMINI_API_URL}?key=${config.GEMINI_API_KEY}`,
+                { contents: [{ parts: [{ text: systemPrompt }] }] }
+            );
+            const textResult = geminiRes.data.candidates[0].content.parts[0].text;
 
             // Intercept trigger code from Gemini
             if (state.step === 'NORMAL' && textResult.includes('[ASK_PREFECT_ID]')) {
