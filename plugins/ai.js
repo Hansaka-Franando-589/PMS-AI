@@ -209,9 +209,9 @@ cmd({
 `;
             }
 
-            const result = await model.generateContent(systemPrompt);
-            const response = result.response;
-            const textResult = response.text();
+            const chat = model.startChat({ history: [] });
+            const result = await chat.sendMessage(systemPrompt);
+            const textResult = result.response.text();
 
             // Intercept trigger code from Gemini
             if (state.step === 'NORMAL' && textResult.includes('[ASK_PREFECT_ID]')) {
