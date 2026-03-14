@@ -4,7 +4,7 @@ const config = require('../config');
 const { db } = require('../lib/firebase');
 
 // Gemini REST API endpoint (v1beta - compatible with existing API key)
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
 
 // In-memory state management for users
 const userStates = {};
