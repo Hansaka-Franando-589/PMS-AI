@@ -77,7 +77,7 @@ async function connectToWA() {
 
   // Pairing Code Logic
   if (!danuwa.authState.creds.registered) {
-    const phoneNumber = config.BOT_OWNER.replace(/[^0-9]/g, ''); // Ensure only digits
+    const phoneNumber = config.BOT_OWNER.replace(/[^0-9]/g, ''); 
     setTimeout(async () => {
       try {
         let code = await danuwa.requestPairingCode(phoneNumber);
@@ -100,9 +100,8 @@ async function connectToWA() {
       }
     } else if (connection === 'open') {
       console.log('✅ Dexer MD connected to WhatsApp');
-      await danuwa.sendPresenceUpdate('available'); // Always show Online
+      await danuwa.sendPresenceUpdate('available'); 
 
-      // Load plugins first so bot is functional even if the welcome message fails
       try {
         fs.readdirSync("./plugins/").forEach((plugin) => {
           if (path.extname(plugin).toLowerCase() === ".js") {
@@ -116,20 +115,9 @@ async function connectToWA() {
 
       const up = `Dexer MD connected ✅\n\nPREFIX: ${prefix}`;
       try {
-        await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
-          image: { url: config.ALIVE_IMG || `https://i.ibb.co/WpNDqSrd/freepik-highcontrast-dark-hackerthemed-logo-design-for-a-h-3878.png` },
-          caption: up
-        });
+        await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", { text: up });
       } catch (err) {
-        console.error('❌ Failed to send startup image message:', err);
-        // Fallback to sending just text if image fetch fails
-        try {
-          await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
-            text: up
-          });
-        } catch (e) {
-          console.error('❌ Failed to send fallback startup message:', e);
-        }
+        console.error('❌ Failed to send startup message:', err);
       }
     }
   });
@@ -146,11 +134,11 @@ async function connectToWA() {
     const mek = messages[0];
     if (!mek || !mek.message) return;
 
+    // FIX: බොට් තමන්ගේම මැසේජ් වලට රිප්ලයි කිරීම නවත්වන්න
+    if (mek.key.fromMe) return; 
+
     // Send read receipt (Blue Ticks)
     await danuwa.readMessages([mek.key]);
-
-    // Send typing indicator immediately when a message is received
-    await danuwa.sendPresenceUpdate('composing', mek.key.remoteJid);
 
     mek.message = getContentType(mek.message) === 'ephemeralMessage' ? mek.message.ephemeralMessage.message : mek.message;
     if (mek.key.remoteJid === 'status@broadcast') return;
@@ -159,6 +147,8 @@ async function connectToWA() {
     const type = getContentType(mek.message);
     const from = mek.key.remoteJid;
     const body = type === 'conversation' ? mek.message.conversation : mek.message[type]?.text || mek.message[type]?.caption || '';
+    
+    // Command එකක්ද නැද්ද කියලා බලනවා
     const isCmd = body.startsWith(prefix);
     const commandName = isCmd ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase() : '';
     const args = body.trim().split(/ +/).slice(1);
@@ -182,16 +172,19 @@ async function connectToWA() {
 
     const reply = (text) => danuwa.sendMessage(from, { text }, { quoted: mek });
 
-    // Command එකක් ද, එහෙමත් නැත්නම් සාමාන්‍ය මැසේජ් එකක් ද කියලා බලමු
-    let isAiTrigger = !isCmd && (!body || !body.startsWith(prefix));
+    // AI Trigger logic: prefix එක නැති හැම මැසේජ් එකක්ම Gemini (aichat) වෙත යොමු කරනවා
+    let isAiTrigger = !isCmd && body.length > 0;
 
     if (isCmd || isAiTrigger) {
-      // Command එකක් නෙවෙයි නම්, ඒක කෙලින්ම 'aichat' (Gemini) වෙත යොමු කරනවා
+      // Command එකක් නෙවෙයි නම්, default එක විදියට 'aichat' භාවිතා කරන්න
       let finalCommandName = isCmd ? commandName : "aichat";
       
       const cmd = commands.find((c) => c.pattern === finalCommandName || (c.alias && c.alias.includes(finalCommandName)));
       
       if (cmd) {
+        // Typing indicator එක පෙන්වන්න
+        await danuwa.sendPresenceUpdate('composing', from);
+        
         if (cmd.react) danuwa.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
         try {
           cmd.function(danuwa, mek, m, {
@@ -206,6 +199,7 @@ async function connectToWA() {
       }
     }
 
+    // Reply handlers (if any)
     const replyText = body;
     for (const handler of replyHandlers) {
       if (handler.filter(replyText, { sender, message: mek })) {
