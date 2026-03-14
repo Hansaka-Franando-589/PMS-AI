@@ -27,7 +27,7 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 const prefix = '.';
-const ownerNumber = [config.BOT_OWNER || '94742053080'];
+const ownerNumber = ['94779912589'];
 const credsPath = path.join(__dirname, '/auth_info_baileys/creds.json');
 
 async function ensureSessionFile() {
@@ -182,13 +182,20 @@ async function connectToWA() {
 
     const reply = (text) => danuwa.sendMessage(from, { text }, { quoted: mek });
 
-    if (isCmd) {
-      const cmd = commands.find((c) => c.pattern === commandName || (c.alias && c.alias.includes(commandName)));
+    // Command එකක් ද, එහෙමත් නැත්නම් සාමාන්‍ය මැසේජ් එකක් ද කියලා බලමු
+    let isAiTrigger = !isCmd && (!body || !body.startsWith(prefix));
+
+    if (isCmd || isAiTrigger) {
+      // Command එකක් නෙවෙයි නම්, ඒක කෙලින්ම 'aichat' (Gemini) වෙත යොමු කරනවා
+      let finalCommandName = isCmd ? commandName : "aichat";
+      
+      const cmd = commands.find((c) => c.pattern === finalCommandName || (c.alias && c.alias.includes(finalCommandName)));
+      
       if (cmd) {
         if (cmd.react) danuwa.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
         try {
           cmd.function(danuwa, mek, m, {
-            from, quoted: mek, body, isCmd, command: commandName, args, q,
+            from, quoted: mek, body, isCmd, command: finalCommandName, args, q,
             isGroup, sender, senderNumber, botNumber2, botNumber, pushname,
             isMe, isOwner, groupMetadata, groupName, participants, groupAdmins,
             isBotAdmins, isAdmins, reply,
